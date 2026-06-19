@@ -1,2 +1,3 @@
 streamlit
+extra-streamlit-components
 markitdown[pdf,docx,pptx,xlsx,xls]
