@@ -1,52 +1,90 @@
 """
 File Markdown Tool — Good Air Inc.
-A simple drag-and-drop interface for MarkItDown, hosted on Streamlit Community Cloud.
-Team members open the link, enter the team password, drop in a file, then copy or
-download lightweight Markdown text to attach to Claude — no terminal, no install.
+A drag-and-drop interface for MarkItDown, hosted on Streamlit Community Cloud.
+Team members open the link, sign in once (with optional "stay signed in"),
+then copy or download lightweight Markdown to attach to Claude.
 """
 
 import io
 import os
+import time
 import tempfile
 import zipfile
+import hashlib
+from datetime import datetime, timedelta
 
 import streamlit as st
+import extra_streamlit_components as stx
 from markitdown import MarkItDown
 
 LOGO = "goodair_logo.png"  # upload this file to the repo with EXACTLY this name
 
 st.set_page_config(page_title="File Markdown Tool", page_icon="❄️", layout="centered")
 
+cookie_manager = stx.CookieManager()
+
 
 def show_logo():
-    """Show the Good Air logo if it's present in the repo."""
     if os.path.exists(LOGO):
         st.image(LOGO, width=280)
 
 
-# ---- Simple shared-password gate -------------------------------------------
-def check_password() -> bool:
-    def password_entered():
-        if st.session_state.get("password") == st.secrets.get("app_password"):
-            st.session_state["authenticated"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["authenticated"] = False
+def token_for(pw: str) -> str:
+    """A non-reversible stamp of the password, safe to store in a browser cookie."""
+    return hashlib.sha256(pw.encode("utf-8")).hexdigest()
 
+
+# ---- Sign-in with optional "stay signed in" --------------------------------
+def check_password() -> bool:
     if st.session_state.get("authenticated"):
+        return True
+
+    secret = st.secrets.get("app_password", "")
+
+    # Returning user with a valid "remember me" cookie
+    saved = cookie_manager.get("fmt_auth")
+    if saved and secret and saved == token_for(secret):
+        st.session_state["authenticated"] = True
         return True
 
     show_logo()
     st.title("File Markdown Tool")
-    st.text_input("Team password", type="password", on_change=password_entered, key="password")
-    if "authenticated" in st.session_state and not st.session_state["authenticated"]:
-        st.error("Incorrect password — try again.")
+    with st.form("login"):
+        pw = st.text_input("Team password", type="password")
+        remember = st.checkbox("Keep me signed in on this device", value=True)
+        submitted = st.form_submit_button("Sign in")
+
+    if submitted:
+        if pw == secret:
+            st.session_state["authenticated"] = True
+            if remember:
+                cookie_manager.set(
+                    "fmt_auth",
+                    token_for(pw),
+                    expires_at=datetime.now() + timedelta(days=30),
+                )
+                time.sleep(0.5)  # give the cookie a moment to save
+            st.rerun()
+        else:
+            st.error("Incorrect password — try again.")
     return False
 
 
 if not check_password():
     st.stop()
 # ---------------------------------------------------------------------------
+
+
+# Sign-out lives in the side panel (the > arrow, top-left)
+with st.sidebar:
+    if st.button("Sign out"):
+        try:
+            cookie_manager.delete("fmt_auth")
+        except Exception:
+            pass
+        st.session_state.clear()
+        time.sleep(0.3)
+        st.rerun()
 
 
 converter = MarkItDown()
