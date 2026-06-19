@@ -1,3 +1,4 @@
 streamlit
 extra-streamlit-components
+pypdf
 markitdown[pdf,docx,pptx,xlsx,xls]
