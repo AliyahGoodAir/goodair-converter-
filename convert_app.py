@@ -1,8 +1,8 @@
 """
-Good Air File Converter
+File Markdown Tool — Good Air Inc.
 A simple drag-and-drop interface for MarkItDown, hosted on Streamlit Community Cloud.
-Team members open the link, enter the team password, drop in a file, and download
-lightweight Markdown text to attach to Claude — no terminal, no install.
+Team members open the link, enter the team password, drop in a file, then copy or
+download lightweight Markdown text to attach to Claude — no terminal, no install.
 """
 
 import io
@@ -13,12 +13,19 @@ import zipfile
 import streamlit as st
 from markitdown import MarkItDown
 
-st.set_page_config(page_title="Good Air File Converter", page_icon="🌬️", layout="centered")
+LOGO = "goodair_logo.png"  # upload this file to the repo with EXACTLY this name
+
+st.set_page_config(page_title="File Markdown Tool", page_icon="❄️", layout="centered")
+
+
+def show_logo():
+    """Show the Good Air logo if it's present in the repo."""
+    if os.path.exists(LOGO):
+        st.image(LOGO, width=280)
 
 
 # ---- Simple shared-password gate -------------------------------------------
 def check_password() -> bool:
-    """Returns True once the correct team password has been entered."""
     def password_entered():
         if st.session_state.get("password") == st.secrets.get("app_password"):
             st.session_state["authenticated"] = True
@@ -29,7 +36,8 @@ def check_password() -> bool:
     if st.session_state.get("authenticated"):
         return True
 
-    st.title("🌬️ Good Air File Converter")
+    show_logo()
+    st.title("File Markdown Tool")
     st.text_input("Team password", type="password", on_change=password_entered, key="password")
     if "authenticated" in st.session_state and not st.session_state["authenticated"]:
         st.error("Incorrect password — try again.")
@@ -43,10 +51,11 @@ if not check_password():
 
 converter = MarkItDown()
 
-st.title("🌬️ Good Air File Converter")
+show_logo()
+st.title("File Markdown Tool")
 st.write(
-    "Drop in PDFs, Word, Excel, or PowerPoint files. "
-    "You'll get back lightweight text (Markdown) to attach to Claude instead of the heavy original."
+    "Drop in PDFs, Word, Excel, or PowerPoint files. You'll get back lightweight text "
+    "(Markdown) you can copy or download to attach to Claude instead of the heavy original."
 )
 
 uploaded = st.file_uploader(
@@ -84,7 +93,8 @@ if uploaded:
                     mime="text/markdown",
                     key="dl_" + out_name,
                 )
-                st.text_area("Preview", text, height=300, key="ta_" + out_name)
+                st.caption("Or copy the text below — hover the box and click the copy icon in its top-right corner.")
+                st.code(text, language="markdown", height=300)
             else:
                 st.warning(
                     "This file came out empty — it's most likely a scan or a drawing "
